@@ -1,87 +1,36 @@
+mod data_types;
 mod db;
-mod endpoints;
-mod question;
-use crate::db::db::DataBaseF;
-use crate::question::question::Question;
-use actix_web::{
-    get, post,
-    web::{Data, Json},
-    App, HttpResponse, HttpServer, Responder,
-};
-use endpoints::endpoints::{list_all, list_all2};
-use env_logger::*;
-use mongodb::{bson::doc, options::ClientOptions, Client, Cursor};
-use std::sync::Mutex;
+pub mod endpoints;
 
-use futures::stream::TryStreamExt;
-use log::{debug, error, info, log_enabled, Level};
-#[get("/all3")]
-pub async fn list_all3(client: Data<mongodb::Client>) -> HttpResponse {
-    let collection: mongodb::Collection<Question> =
-        client.database("familyFraud").collection("Questions");
-    match collection.find(None, None).await {
-        Ok(mut cursors) => {
-            let mut questions: Vec<Question> = Vec::new();
-            while let Some(question) = cursors
-                .try_next()
-                .await
-                .ok()
-                .expect("Error mapping through cursor")
-            {
-                questions.push(question)
-            }
-            return HttpResponse::Ok().json(questions);
-        }
+use actix_web::{App, HttpServer};
 
-        Err(_) => HttpResponse::NotFound().body(format!("No question found with username ")),
-    };
+use actix_web::web::Data;
+use data_types::product::{Price, Product, ProductAndPrice, Store, Ticket, Weight};
+use db::db::DataBaseF;
+use endpoints::endpoints::list_all_tickets;
+use endpoints::endpoints::add_new_ticket;
 
-    debug!("call all3");
-    return HttpResponse::Ok().into();
-}
-#[post("/question")]
-pub async fn post_new_question(
-    client: Data<mongodb::Client>,
-    question: Json<Question>,
-) -> HttpResponse {
-    debug!("Insert question call");
-    let collection: mongodb::Collection<Question> =
-        client.database("familyFraud").collection("Questions");
-
-    let q2 = Question {
-        id: None,
-        name: question.name.to_owned(),
-        location: question.location.to_owned(),
-        title: question.title.to_owned(),
-    };
-
-    let question = collection.insert_one(q2, None).await;
-
-    match question {
-        Ok(q) => return HttpResponse::Ok().json(q),
-        Err(err) => HttpResponse::InternalServerError().body(err.to_string()),
-    };
-    debug!("Insert question call");
-    return HttpResponse::Ok().body("ENDED");
-}
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     std::env::set_var("RUST_LOG", "debug");
     std::env::set_var("RUST_BACKTRACE", "1");
     env_logger::init();
+    let data_base = DataBaseF::init().await.expect("Cannot create DATABASE");
 
-    let client_options = ClientOptions::parse("mongodb://root:example@localhost:27017")
-        .await
-        .expect("a");
-    let client: mongodb::Client = Client::with_options(client_options).unwrap();
-    let data: Data<mongodb::Client> = Data::new(client.clone());
+    let p: Product = Product::new(None, "aaa".to_string());
+    let p2: Product = Product::new(None, "bbb".to_string());
+    let pandp: ProductAndPrice = ProductAndPrice::new(p, Price::new(23, false), Weight::new(12));
+    let pandp2: ProductAndPrice = ProductAndPrice::new(p2, Price::new(33, true), Weight::new(1));
+    let s: Store = Store::new(None, "Lidl".to_string());
 
+    let time: i32 = 1;
+    let ticket: Ticket = Ticket::new(None, vec![pandp, pandp2], time, s, "Dupa".to_string());
+    println!("{}",serde_json::to_string(&ticket)?);
     HttpServer::new(move || {
         App::new()
-            .app_data(Data::new(client.clone()))
-            .service(list_all2)
-            .service(list_all3)
-            .service(post_new_question)
+            .app_data(Data::new(data_base.clone()))
+            .service(add_new_ticket)
+            .service(list_all_tickets)
     })
     .bind(("127.0.0.1", 8080))?
     .run()
