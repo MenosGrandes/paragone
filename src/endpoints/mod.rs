@@ -1,1 +1,2 @@
-pub mod endpoints;
+pub mod tickets;
+pub mod products;
