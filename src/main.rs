@@ -27,7 +27,7 @@ async fn main() -> std::io::Result<()> {
             .service(add_new_product)
             .service(get_product_by_name)
     })
-    .bind(("127.0.0.1", 8080))?
+    .bind(("192.168.1.156", 8086))?
     .run()
     .await
 }
