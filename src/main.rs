@@ -6,7 +6,8 @@ use actix_web::{App, HttpServer};
 
 use actix_web::web::Data;
 use db::db::DataBaseF;
-use endpoints::products::{list_all_products, get_product_by_name};
+use endpoints::products::{get_product_by_name, list_all_products};
+use endpoints::stores::{add_new_store, list_all_stores};
 use endpoints::tickets::{add_new_ticket, list_all_tickets};
 
 use crate::endpoints::products::add_new_product;
@@ -26,6 +27,8 @@ async fn main() -> std::io::Result<()> {
             .service(list_all_products)
             .service(add_new_product)
             .service(get_product_by_name)
+            .service(add_new_store)
+            .service(list_all_stores)
     })
     .bind(("192.168.1.156", 8086))?
     .run()
